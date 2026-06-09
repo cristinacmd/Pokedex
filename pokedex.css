@@ -138,3 +138,104 @@ td.crismochi-cell{text-align:center;width:50px}
 .panel-body::-webkit-scrollbar{width:6px}
 .panel-body::-webkit-scrollbar-track{background:#0f1b35}
 .panel-body::-webkit-scrollbar-thumb{background:#1e3a6e;border-radius:3px}
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 640px) {
+  body { padding: 12px }
+
+  /* Tabs */
+  .tabs { gap: 6px }
+  .tab-btn { padding: 8px 14px; font-size: .8rem; letter-spacing: 0 }
+
+  /* Controls */
+  .controls { gap: 8px }
+  .controls input { min-width: 0; width: 100% }
+  .toggle-btn { flex: 1; text-align: center; font-size: .8rem; padding: 8px 10px }
+
+  /* Hide table, show card grid instead */
+  .table-wrapper { display: none }
+
+  .pokemon-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .poke-card {
+    background: #16213e;
+    border-radius: 12px;
+    border: 1px solid #1e3a6e;
+    padding: 10px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+  }
+
+  .poke-card img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+  }
+
+  .poke-card .poke-num {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: .68rem;
+    color: #666;
+  }
+
+  .poke-card .poke-crismochi {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+  }
+
+  .poke-card .poke-name {
+    font-size: .82rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    text-align: center;
+    color: #eee;
+  }
+
+  .poke-card .poke-types { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center }
+
+  .poke-card .poke-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  .poke-card .poke-gen { font-size: .68rem }
+  .poke-card .poke-star { font-size: 1.1rem }
+  .poke-card .tcg-btn { font-size: .68rem; padding: 3px 7px }
+}
+
+/* Desktop: hide card grid */
+@media (min-width: 641px) {
+  .pokemon-cards-grid { display: none }
+}
+
+/* ── SIDE PANEL MOBILE ── */
+@media (max-width: 640px) {
+  #sidePanel {
+    width: 100%;
+    right: -100%;
+    border-left: none;
+    border-top: 2px solid #f5c518;
+  }
+  #sidePanel.open { right: 0 }
+
+  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px }
+
+  /* Bigger tap target for fav heart */
+  .card-fav-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+}

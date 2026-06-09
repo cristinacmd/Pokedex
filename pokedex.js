@@ -26,12 +26,16 @@ function showPage(name,btn){
   if(name==='favcards') renderFavCardsPage();
 }
 
-// Build skeleton rows 1-1025
+// Build skeleton rows (table) + mobile cards
 const tbody=document.getElementById('tbody');
+const pokeCardsGrid=document.getElementById('pokeCardsGrid');
+
 for(let id=1;id<=1025;id++){
   const gen=POKEMON_GEN[id]||'?';
   const isCrismochi=CRISMOCHI_IDS.has(id);
   const isFav=favorites.has(id);
+
+  // ── Table row ──
   const tr=document.createElement('tr');
   tr.id='row-'+id;
   tr.dataset.id=id;
@@ -52,6 +56,25 @@ for(let id=1;id<=1025;id++){
     <td class="tcg-cell"><button class="tcg-btn" id="tcgbtn-${id}" disabled>Ver cartas</button></td>
   `;
   tbody.appendChild(tr);
+
+  // ── Mobile card ──
+  const card=document.createElement('div');
+  card.className='poke-card';
+  card.id='card-'+id;
+  card.dataset.id=id;
+  card.innerHTML=`
+    <span class="poke-num">#${id}</span>
+    ${isCrismochi?'<span class="poke-crismochi"><span class="crismochi-dot" title="En tu lista"></span></span>':''}
+    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png" loading="lazy" alt="#${id}">
+    <div class="poke-name loading-cell" id="cname-${id}">…</div>
+    <div class="poke-types" id="ctypes-${id}"></div>
+    <div class="poke-bottom">
+      <span class="gen-badge">${gen}</span>
+      <span class="star poke-star ${isFav?'fav':'not-fav'}" id="cstar-${id}" onclick="toggleFav(${id})">${isFav?'★':'☆'}</span>
+      <button class="tcg-btn" id="ctcgbtn-${id}" disabled>TCG</button>
+    </div>
+  `;
+  pokeCardsGrid.appendChild(card);
 }
 
 // Fetch all 1025 at once via PokeAPI list + batch detail fetch
@@ -70,6 +93,9 @@ async function loadAllPokemon(){
         const nc=document.getElementById('name-'+id);
         if(nc){nc.textContent=p.name.replace(/-/g,' ');nc.classList.remove('loading-cell')}
       }
+      // mobile card name
+      const cn=document.getElementById('cname-'+id);
+      if(cn){cn.textContent=p.name.replace(/-/g,' ');cn.classList.remove('loading-cell')}
     });
 
     // Now fetch types in batches of 30
@@ -93,12 +119,19 @@ async function loadAllPokemon(){
           const nc=document.getElementById('name-'+id);
           if(nc){nc.textContent=name.replace(/-/g,' ');nc.classList.remove('loading-cell')}
           // types
-          document.getElementById('types-'+id).innerHTML=types.map(t=>
+          const typesHTML=types.map(t=>
             `<span class="badge" style="background:${TYPE_COLORS[t]||'#888'};color:${LIGHT_TYPES.has(t)?'#333':'#fff'}">${TYPE_LABELS[t]||t}</span>`
           ).join('');
-          // enable TCG button
+          document.getElementById('types-'+id).innerHTML=typesHTML;
+          // mobile card types
+          const ct=document.getElementById('ctypes-'+id);
+          if(ct) ct.innerHTML=typesHTML;
+          // enable TCG button (table)
           const btn=document.getElementById('tcgbtn-'+id);
           if(btn){btn.disabled=false;btn.onclick=()=>openPanel(id,name)}
+          // enable TCG button (mobile card)
+          const cbtn=document.getElementById('ctcgbtn-'+id);
+          if(cbtn){cbtn.disabled=false;cbtn.onclick=()=>openPanel(id,name)}
         }catch(e){}
         loadedCount++;
         document.getElementById('prog').textContent=loadedCount;
@@ -116,8 +149,17 @@ async function loadAllPokemon(){
 
 // Favorites (Pokémon)
 function toggleFav(id){
-  if(favorites.has(id)){favorites.delete(id);document.getElementById('row-'+id).dataset.fav='0';const s=document.getElementById('star-'+id);s.textContent='☆';s.className='star not-fav';}
-  else{favorites.add(id);document.getElementById('row-'+id).dataset.fav='1';const s=document.getElementById('star-'+id);s.textContent='★';s.className='star fav';}
+  if(favorites.has(id)){
+    favorites.delete(id);
+    document.getElementById('row-'+id).dataset.fav='0';
+    const s=document.getElementById('star-'+id);s.textContent='☆';s.className='star not-fav';
+    const cs=document.getElementById('cstar-'+id);if(cs){cs.textContent='☆';cs.className='star poke-star not-fav';}
+  } else {
+    favorites.add(id);
+    document.getElementById('row-'+id).dataset.fav='1';
+    const s=document.getElementById('star-'+id);s.textContent='★';s.className='star fav';
+    const cs=document.getElementById('cstar-'+id);if(cs){cs.textContent='★';cs.className='star poke-star fav';}
+  }
   saveFavs();applyFilters();
 }
 function toggleFavFilter(){showFavsOnly=!showFavsOnly;document.getElementById('favToggle').classList.toggle('active',showFavsOnly);applyFilters()}
@@ -139,6 +181,9 @@ function applyFilters(){
     const matchFav=!showFavsOnly||row.dataset.fav==='1';
     const show=matchSearch&&matchType&&matchGen&&matchCrismochi&&matchFav;
     row.classList.toggle('hidden',!show);
+    // sync mobile card
+    const card=document.getElementById('card-'+row.dataset.id);
+    if(card) card.classList.toggle('hidden',!show);
     if(show)visible++;
   });
   document.getElementById('count').textContent=`Mostrando ${visible} Pokémon`;
@@ -182,20 +227,64 @@ function clearAllFavCards(){
   document.querySelectorAll('.card-fav-btn').forEach(b=>{b.classList.remove('fav');b.textContent='♡'});
 }
 
+// Normalize a PokeAPI name to a TCG-friendly search name.
+// PokeAPI appends form suffixes (e.g. "mimikyu-disguised", "wormadam-plant",
+// "giratina-altered") that don't exist in the TCG. We strip everything after
+// the first hyphen UNLESS the base name itself is hyphenated (e.g. "ho-oh",
+// "porygon-z", "jangmo-o", "hakamo-o", "kommo-o", "tapu-koko" etc.).
+const HYPHENATED_BASE_NAMES = new Set([
+  'ho-oh','porygon-z','jangmo-o','hakamo-o','kommo-o',
+  'tapu-koko','tapu-lele','tapu-bulu','tapu-fini',
+  'chi-yu','chien-pao','ting-lu','wo-chien',
+  'great-tusk','scream-tail','brute-bonnet','flutter-mane',
+  'slither-wing','sandy-shocks','iron-treads','iron-bundle',
+  'iron-hands','iron-jugulis','iron-moth','iron-thorns',
+  'iron-valiant','iron-leaves','iron-boulder','iron-crown',
+  'roaring-moon','walking-wake','gouging-fire','raging-bolt',
+  'mr-mime','mr-rime','mime-jr','type-null',
+]);
+
+function toTcgName(rawName) {
+  const lower = rawName.toLowerCase();
+  if (HYPHENATED_BASE_NAMES.has(lower)) return rawName;
+  // Strip any suffix after the first hyphen
+  const base = rawName.split('-')[0];
+  return base;
+}
+
 // TCG Panel
-async function openPanel(id,name){
-  document.getElementById('panelTitle').textContent=name.replace(/-/g,' ');
-  document.getElementById('panelSub').textContent='';
-  document.getElementById('cardSearch').value='';
-  document.getElementById('panelBody').innerHTML='<div class="panel-loading"><div class="spinner"></div>Buscando cartas…</div>';
+async function openPanel(id, name){
+  const tcgName = toTcgName(name);
+  document.getElementById('panelTitle').textContent = name.replace(/-/g,' ');
+  document.getElementById('panelSub').textContent = '';
+  document.getElementById('cardSearch').value = '';
+  document.getElementById('panelBody').innerHTML = '<div class="panel-loading"><div class="spinner"></div>Buscando cartas…</div>';
   document.getElementById('sidePanel').classList.add('open');
   document.getElementById('overlay').classList.add('show');
-  try{
-    const res=await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(name)}"&pageSize=250`);
-    const data=await res.json();
-    allCards=(data.data||[]).map(c=>({id:c.id,name:c.name,img:c.images?.small||'',set:c.set?.name||'',rarity:c.rarity||'',number:c.number||''}));
+  try {
+    // First try with the cleaned name
+    let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(tcgName)}"&pageSize=250`);
+    let data = await res.json();
+    let cards = data.data || [];
+
+    // If nothing found and we stripped a suffix, retry with the raw name
+    if (cards.length === 0 && tcgName.toLowerCase() !== name.toLowerCase()) {
+      res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(name)}"&pageSize=250`);
+      data = await res.json();
+      cards = data.data || [];
+    }
+
+    allCards = cards.map(c => ({
+      id: c.id, name: c.name,
+      img: c.images?.small || '',
+      set: c.set?.name || '',
+      rarity: c.rarity || '',
+      number: c.number || ''
+    }));
     renderPanelCards(allCards);
-  }catch(e){document.getElementById('panelBody').innerHTML='<div class="panel-empty">Error al cargar las cartas.</div>';}
+  } catch(e) {
+    document.getElementById('panelBody').innerHTML = '<div class="panel-empty">Error al cargar las cartas.</div>';
+  }
 }
 function renderPanelCards(cards){
   const body=document.getElementById('panelBody');
