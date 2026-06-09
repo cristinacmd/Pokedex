@@ -26,16 +26,12 @@ function showPage(name,btn){
   if(name==='favcards') renderFavCardsPage();
 }
 
-// Build skeleton rows (table) + mobile cards
+// Build skeleton rows 1-1025
 const tbody=document.getElementById('tbody');
-const pokeCardsGrid=document.getElementById('pokeCardsGrid');
-
 for(let id=1;id<=1025;id++){
   const gen=POKEMON_GEN[id]||'?';
   const isCrismochi=CRISMOCHI_IDS.has(id);
   const isFav=favorites.has(id);
-
-  // ── Table row ──
   const tr=document.createElement('tr');
   tr.id='row-'+id;
   tr.dataset.id=id;
@@ -44,7 +40,6 @@ for(let id=1;id<=1025;id++){
   tr.dataset.gen=gen;
   tr.dataset.crismochi=isCrismochi?'1':'0';
   tr.dataset.fav=isFav?'1':'0';
-  tr.dataset.loaded='0';
   tr.innerHTML=`
     <td class="num">#${id}</td>
     <td class="img-cell"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png" loading="lazy" alt="#${id}"></td>
@@ -56,30 +51,6 @@ for(let id=1;id<=1025;id++){
     <td class="tcg-cell"><button class="tcg-btn" id="tcgbtn-${id}" disabled>Ver cartas</button></td>
   `;
   tbody.appendChild(tr);
-
-  // ── Mobile card ──
-  const card=document.createElement('div');
-  card.className='poke-card';
-  card.id='card-'+id;
-  card.dataset.id=id;
-  card.dataset.name='';
-  card.dataset.types='';
-  card.dataset.gen=gen;
-  card.dataset.crismochi=isCrismochi?'1':'0';
-  card.dataset.fav=isFav?'1':'0';
-  card.innerHTML=`
-    <span class="poke-num">#${id}</span>
-    ${isCrismochi?'<span class="poke-crismochi"><span class="crismochi-dot" title="En tu lista"></span></span>':''}
-    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png" loading="lazy" alt="#${id}">
-    <div class="poke-name loading-cell" id="cname-${id}">…</div>
-    <div class="poke-types" id="ctypes-${id}"></div>
-    <div class="poke-bottom">
-      <span class="gen-badge">${gen}</span>
-      <span class="star poke-star ${isFav?'fav':'not-fav'}" id="cstar-${id}" onclick="toggleFav(${id})">${isFav?'★':'☆'}</span>
-      <button class="tcg-btn" id="ctcgbtn-${id}" disabled>TCG</button>
-    </div>
-  `;
-  pokeCardsGrid.appendChild(card);
 }
 
 // Fetch all 1025 at once via PokeAPI list + batch detail fetch
@@ -98,11 +69,7 @@ async function loadAllPokemon(){
         const nc=document.getElementById('name-'+id);
         if(nc){nc.textContent=p.name.replace(/-/g,' ');nc.classList.remove('loading-cell')}
       }
-      // mobile card name + dataset
-      const cn=document.getElementById('cname-'+id);
-      if(cn){cn.textContent=p.name.replace(/-/g,' ');cn.classList.remove('loading-cell')}
-      const mc=document.getElementById('card-'+id);
-      if(mc) mc.dataset.name=p.name.toLowerCase();
+
     });
 
     // Now fetch types in batches of 30
@@ -130,17 +97,11 @@ async function loadAllPokemon(){
             `<span class="badge" style="background:${TYPE_COLORS[t]||'#888'};color:${LIGHT_TYPES.has(t)?'#333':'#fff'}">${TYPE_LABELS[t]||t}</span>`
           ).join('');
           document.getElementById('types-'+id).innerHTML=typesHTML;
-          // mobile card types + dataset sync
-          const ct=document.getElementById('ctypes-'+id);
-          if(ct) ct.innerHTML=typesHTML;
-          const mc=document.getElementById('card-'+id);
-          if(mc){mc.dataset.types=types.join(',');mc.dataset.name=name.toLowerCase();}
+
           // enable TCG button (table)
           const btn=document.getElementById('tcgbtn-'+id);
           if(btn){btn.disabled=false;btn.onclick=()=>openPanel(id,name)}
-          // enable TCG button (mobile card)
-          const cbtn=document.getElementById('ctcgbtn-'+id);
-          if(cbtn){cbtn.disabled=false;cbtn.onclick=()=>openPanel(id,name)}
+
         }catch(e){}
         loadedCount++;
         document.getElementById('prog').textContent=loadedCount;
@@ -160,52 +121,36 @@ async function loadAllPokemon(){
 function toggleFav(id){
   if(favorites.has(id)){
     favorites.delete(id);
-    const tr=document.getElementById('row-'+id); if(tr) tr.dataset.fav='0';
-    const mc=document.getElementById('card-'+id); if(mc) mc.dataset.fav='0';
-    const s=document.getElementById('star-'+id);if(s){s.textContent='☆';s.className='star not-fav';}
-    const cs=document.getElementById('cstar-'+id);if(cs){cs.textContent='☆';cs.className='star poke-star not-fav';}
+    document.getElementById('row-'+id).dataset.fav='0';
+    const s=document.getElementById('star-'+id);s.textContent='☆';s.className='star not-fav';
   } else {
     favorites.add(id);
-    const tr=document.getElementById('row-'+id); if(tr) tr.dataset.fav='1';
-    const mc=document.getElementById('card-'+id); if(mc) mc.dataset.fav='1';
-    const s=document.getElementById('star-'+id);if(s){s.textContent='★';s.className='star fav';}
-    const cs=document.getElementById('cstar-'+id);if(cs){cs.textContent='★';cs.className='star poke-star fav';}
+    document.getElementById('row-'+id).dataset.fav='1';
+    const s=document.getElementById('star-'+id);s.textContent='★';s.className='star fav';
   }
   saveFavs();applyFilters();
 }
 function toggleFavFilter(){showFavsOnly=!showFavsOnly;document.getElementById('favToggle').classList.toggle('active',showFavsOnly);applyFilters()}
 function toggleCrismochi(){showCrismochiOnly=!showCrismochiOnly;document.getElementById('crismochiToggle').classList.toggle('active',showCrismochiOnly);applyFilters()}
 
-// Apply all filters — operates on both table rows and mobile cards
+// Apply all filters
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase().trim();
+  const rows=document.querySelectorAll('#tbody tr');
   let visible=0;
-
-  for(let id=1;id<=1025;id++){
-    const tr=document.getElementById('row-'+id);
-    const mc=document.getElementById('card-'+id);
-    if(!tr && !mc) continue;
-
-    // Use whichever element exists as data source (both have same datasets)
-    const src=tr||mc;
-    const name=src.dataset.name||'';
-    const types=src.dataset.types?src.dataset.types.split(','):[];
-    const gen=src.dataset.gen||'';
-    const crismochi=src.dataset.crismochi;
-    const fav=src.dataset.fav;
-
-    const matchSearch=!q||name.includes(q)||('#'+id).includes(q);
+  rows.forEach(row=>{
+    const name=row.dataset.name||'';
+    const id='#'+row.dataset.id;
+    const types=row.dataset.types?row.dataset.types.split(','):[];
+    const matchSearch=!q||name.includes(q)||id.includes(q);
     const matchType=activeTypes.size===0||[...activeTypes].every(t=>types.includes(t));
-    const matchGen=activeGens.size===0||activeGens.has(gen);
-    const matchCrismochi=!showCrismochiOnly||crismochi==='1';
-    const matchFav=!showFavsOnly||fav==='1';
+    const matchGen=activeGens.size===0||activeGens.has(row.dataset.gen);
+    const matchCrismochi=!showCrismochiOnly||row.dataset.crismochi==='1';
+    const matchFav=!showFavsOnly||row.dataset.fav==='1';
     const show=matchSearch&&matchType&&matchGen&&matchCrismochi&&matchFav;
-
-    if(tr) tr.classList.toggle('hidden',!show);
-    if(mc) mc.classList.toggle('hidden',!show);
-    if(show) visible++;
-  }
-
+    row.classList.toggle('hidden',!show);
+    if(show)visible++;
+  });
   document.getElementById('count').textContent=`Mostrando ${visible} Pokémon`;
 }
 
@@ -273,23 +218,32 @@ function toTcgName(rawName) {
 }
 
 // TCG Panel
+const tcgCache = {};
+
 async function openPanel(id, name){
   const tcgName = toTcgName(name);
   document.getElementById('panelTitle').textContent = name.replace(/-/g,' ');
   document.getElementById('panelSub').textContent = '';
   document.getElementById('cardSearch').value = '';
-  document.getElementById('panelBody').innerHTML = '<div class="panel-loading"><div class="spinner"></div>Buscando cartas…</div>';
   document.getElementById('sidePanel').classList.add('open');
   document.getElementById('overlay').classList.add('show');
+
+  // Serve from cache if available
+  if (tcgCache[id]) {
+    allCards = tcgCache[id];
+    renderPanelCards(allCards);
+    return;
+  }
+
+  document.getElementById('panelBody').innerHTML = '<div class="panel-loading"><div class="spinner"></div>Buscando cartas…</div>';
   try {
-    // First try with the cleaned name
-    let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(tcgName)}"&pageSize=250`);
+    let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(tcgName)}"&pageSize=100`);
     let data = await res.json();
     let cards = data.data || [];
 
-    // If nothing found and we stripped a suffix, retry with the raw name
+    // Fallback to raw name only if nothing found and name was modified
     if (cards.length === 0 && tcgName.toLowerCase() !== name.toLowerCase()) {
-      res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(name)}"&pageSize=250`);
+      res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(name)}"&pageSize=100`);
       data = await res.json();
       cards = data.data || [];
     }
@@ -301,6 +255,7 @@ async function openPanel(id, name){
       rarity: c.rarity || '',
       number: c.number || ''
     }));
+    tcgCache[id] = allCards;
     renderPanelCards(allCards);
   } catch(e) {
     document.getElementById('panelBody').innerHTML = '<div class="panel-empty">Error al cargar las cartas.</div>';
