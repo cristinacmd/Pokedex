@@ -138,3 +138,20 @@ td.crismochi-cell{text-align:center;width:50px}
 .panel-body::-webkit-scrollbar{width:6px}
 .panel-body::-webkit-scrollbar-track{background:#0f1b35}
 .panel-body::-webkit-scrollbar-thumb{background:#1e3a6e;border-radius:3px}
+/* ── Side panel full-screen on mobile ── */
+@media (max-width: 640px) {
+  #sidePanel {
+    width: 100%;
+    right: -100%;
+    border-left: none;
+    border-top: 2px solid #f5c518;
+  }
+  #sidePanel.open { right: 0 }
+
+  /* Bigger tap target for fav heart on mobile */
+  .card-fav-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+}
