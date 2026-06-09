@@ -239,3 +239,10 @@ td.crismochi-cell{text-align:center;width:50px}
     font-size: 1.2rem;
   }
 }
+
+/* Disabled type buttons when 2-type limit reached */
+.type-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+  transform: none;
+}

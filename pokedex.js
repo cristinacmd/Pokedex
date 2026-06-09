@@ -62,6 +62,11 @@ for(let id=1;id<=1025;id++){
   card.className='poke-card';
   card.id='card-'+id;
   card.dataset.id=id;
+  card.dataset.name='';
+  card.dataset.types='';
+  card.dataset.gen=gen;
+  card.dataset.crismochi=isCrismochi?'1':'0';
+  card.dataset.fav=isFav?'1':'0';
   card.innerHTML=`
     <span class="poke-num">#${id}</span>
     ${isCrismochi?'<span class="poke-crismochi"><span class="crismochi-dot" title="En tu lista"></span></span>':''}
@@ -93,9 +98,11 @@ async function loadAllPokemon(){
         const nc=document.getElementById('name-'+id);
         if(nc){nc.textContent=p.name.replace(/-/g,' ');nc.classList.remove('loading-cell')}
       }
-      // mobile card name
+      // mobile card name + dataset
       const cn=document.getElementById('cname-'+id);
       if(cn){cn.textContent=p.name.replace(/-/g,' ');cn.classList.remove('loading-cell')}
+      const mc=document.getElementById('card-'+id);
+      if(mc) mc.dataset.name=p.name.toLowerCase();
     });
 
     // Now fetch types in batches of 30
@@ -123,9 +130,11 @@ async function loadAllPokemon(){
             `<span class="badge" style="background:${TYPE_COLORS[t]||'#888'};color:${LIGHT_TYPES.has(t)?'#333':'#fff'}">${TYPE_LABELS[t]||t}</span>`
           ).join('');
           document.getElementById('types-'+id).innerHTML=typesHTML;
-          // mobile card types
+          // mobile card types + dataset sync
           const ct=document.getElementById('ctypes-'+id);
           if(ct) ct.innerHTML=typesHTML;
+          const mc=document.getElementById('card-'+id);
+          if(mc){mc.dataset.types=types.join(',');mc.dataset.name=name.toLowerCase();}
           // enable TCG button (table)
           const btn=document.getElementById('tcgbtn-'+id);
           if(btn){btn.disabled=false;btn.onclick=()=>openPanel(id,name)}
@@ -151,13 +160,15 @@ async function loadAllPokemon(){
 function toggleFav(id){
   if(favorites.has(id)){
     favorites.delete(id);
-    document.getElementById('row-'+id).dataset.fav='0';
-    const s=document.getElementById('star-'+id);s.textContent='☆';s.className='star not-fav';
+    const tr=document.getElementById('row-'+id); if(tr) tr.dataset.fav='0';
+    const mc=document.getElementById('card-'+id); if(mc) mc.dataset.fav='0';
+    const s=document.getElementById('star-'+id);if(s){s.textContent='☆';s.className='star not-fav';}
     const cs=document.getElementById('cstar-'+id);if(cs){cs.textContent='☆';cs.className='star poke-star not-fav';}
   } else {
     favorites.add(id);
-    document.getElementById('row-'+id).dataset.fav='1';
-    const s=document.getElementById('star-'+id);s.textContent='★';s.className='star fav';
+    const tr=document.getElementById('row-'+id); if(tr) tr.dataset.fav='1';
+    const mc=document.getElementById('card-'+id); if(mc) mc.dataset.fav='1';
+    const s=document.getElementById('star-'+id);if(s){s.textContent='★';s.className='star fav';}
     const cs=document.getElementById('cstar-'+id);if(cs){cs.textContent='★';cs.className='star poke-star fav';}
   }
   saveFavs();applyFilters();
@@ -165,27 +176,36 @@ function toggleFav(id){
 function toggleFavFilter(){showFavsOnly=!showFavsOnly;document.getElementById('favToggle').classList.toggle('active',showFavsOnly);applyFilters()}
 function toggleCrismochi(){showCrismochiOnly=!showCrismochiOnly;document.getElementById('crismochiToggle').classList.toggle('active',showCrismochiOnly);applyFilters()}
 
-// Apply all filters
+// Apply all filters — operates on both table rows and mobile cards
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase().trim();
-  const rows=document.querySelectorAll('#tbody tr');
   let visible=0;
-  rows.forEach(row=>{
-    const name=row.dataset.name;
-    const id='#'+row.dataset.id;
-    const types=row.dataset.types?row.dataset.types.split(','):[];
-    const matchSearch=!q||name.includes(q)||id.includes(q);
+
+  for(let id=1;id<=1025;id++){
+    const tr=document.getElementById('row-'+id);
+    const mc=document.getElementById('card-'+id);
+    if(!tr && !mc) continue;
+
+    // Use whichever element exists as data source (both have same datasets)
+    const src=tr||mc;
+    const name=src.dataset.name||'';
+    const types=src.dataset.types?src.dataset.types.split(','):[];
+    const gen=src.dataset.gen||'';
+    const crismochi=src.dataset.crismochi;
+    const fav=src.dataset.fav;
+
+    const matchSearch=!q||name.includes(q)||('#'+id).includes(q);
     const matchType=activeTypes.size===0||[...activeTypes].every(t=>types.includes(t));
-    const matchGen=activeGens.size===0||activeGens.has(row.dataset.gen);
-    const matchCrismochi=!showCrismochiOnly||row.dataset.crismochi==='1';
-    const matchFav=!showFavsOnly||row.dataset.fav==='1';
+    const matchGen=activeGens.size===0||activeGens.has(gen);
+    const matchCrismochi=!showCrismochiOnly||crismochi==='1';
+    const matchFav=!showFavsOnly||fav==='1';
     const show=matchSearch&&matchType&&matchGen&&matchCrismochi&&matchFav;
-    row.classList.toggle('hidden',!show);
-    // sync mobile card
-    const card=document.getElementById('card-'+row.dataset.id);
-    if(card) card.classList.toggle('hidden',!show);
-    if(show)visible++;
-  });
+
+    if(tr) tr.classList.toggle('hidden',!show);
+    if(mc) mc.classList.toggle('hidden',!show);
+    if(show) visible++;
+  }
+
   document.getElementById('count').textContent=`Mostrando ${visible} Pokémon`;
 }
 
@@ -319,7 +339,17 @@ function buildTypeFilters(){
   [...allTypes].sort().forEach(t=>{
     const btn=document.createElement('button');
     btn.className=`type-btn type-${t}`;btn.textContent=TYPE_LABELS[t]||t;btn.dataset.type=t;
-    btn.onclick=()=>{toggle(activeTypes,t,btn);allBtn.classList.toggle('active',activeTypes.size===0);applyFilters()};
+    btn.onclick=()=>{
+      if(!activeTypes.has(t) && activeTypes.size>=2) return; // max 2
+      toggle(activeTypes,t,btn);
+      allBtn.classList.toggle('active',activeTypes.size===0);
+      // disable/enable buttons that are not selected when limit reached
+      container.querySelectorAll('.type-btn:not([data-type="all"])').forEach(b=>{
+        if(!activeTypes.has(b.dataset.type))
+          b.disabled=activeTypes.size>=2;
+      });
+      applyFilters();
+    };
     container.appendChild(btn);
   });
 }
@@ -338,7 +368,15 @@ function makeAllBtn(container,set,kind){
   btn.className=(kind==='type'?'type-btn':'gen-btn')+' active';
   btn.style.cssText='background:#f5c518;color:#333;border-color:#f5c518;opacity:1';
   btn.textContent='Todos';btn.dataset[kind]='all';
-  btn.onclick=()=>{set.clear();container.querySelectorAll(`button:not([data-${kind}="all"])`).forEach(b=>b.classList.remove('active'));btn.classList.add('active');applyFilters()};
+  btn.onclick=()=>{
+    set.clear();
+    container.querySelectorAll(`button:not([data-${kind}="all"])`).forEach(b=>{
+      b.classList.remove('active');
+      b.disabled=false; // re-enable all when resetting
+    });
+    btn.classList.add('active');
+    applyFilters();
+  };
   container.appendChild(btn);return btn;
 }
 function toggle(set,val,btn){if(set.has(val)){set.delete(val);btn.classList.remove('active')}else{set.add(val);btn.classList.add('active')}}
