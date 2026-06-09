@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokédex</title>
+  <link rel="stylesheet" href="pokedex.css">
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showPage('pokedex',this)">&#x26A1; Pokédex</button>
+  <button class="tab-btn" onclick="showPage('favcards',this)">&#x2764; Cartas favoritas <span id="favCardsCount"></span></button>
+</div>
+
+<!-- PAGE: POKÉDEX -->
+<div class="page active" id="page-pokedex">
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Buscar por nombre o #..." oninput="applyFilters()">
+    <button class="toggle-btn crismochi-btn" id="crismochiToggle" onclick="toggleCrismochi()">&#x25CF; Solo mis 409</button>
+    <button class="toggle-btn" id="favToggle" onclick="toggleFavFilter()">★ Solo favoritos</button>
+  </div>
+
+  <div class="filter-section">
+    <span class="filter-label">Tipo</span>
+    <div class="pill-row" id="typeFilters"></div>
+  </div>
+  <div class="filter-section">
+    <span class="filter-label">Generación</span>
+    <div class="pill-row" id="genFilters"></div>
+  </div>
+
+  <div id="progress">Cargando Pokémon… <span id="prog">0</span>/1025</div>
+  <div class="count" id="count"></div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th class="c">#</th><th class="c">Imagen</th><th>Nombre</th>
+          <th>Tipo(s)</th><th class="c">Gen</th><th class="c" title="En tu lista de 409">&#x25CF;</th><th class="c">★</th><th class="c">TCG</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PAGE: CARTAS FAVORITAS -->
+<div class="page" id="page-favcards">
+  <div class="fav-cards-header">
+    <h2>&#x2764; Cartas favoritas</h2>
+    <button class="clear-btn" onclick="clearAllFavCards()">Eliminar todas</button>
+  </div>
+  <div id="favCardsBody"></div>
+</div>
+
+<!-- Side panel -->
+<div id="overlay" onclick="closePanel()"></div>
+<div id="sidePanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="panelTitle">Cartas TCG</div>
+      <div class="panel-sub" id="panelSub"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel()">&#x2715;</button>
+  </div>
+  <div class="panel-search">
+    <input type="text" id="cardSearch" placeholder="Filtrar cartas…" oninput="filterCards()">
+  </div>
+  <div class="panel-body" id="panelBody">
+    <div class="panel-empty">Selecciona un Pokémon para ver sus cartas</div>
+  </div>
+</div>
+
+  <script src="pokedex.js"></script>
+</body>
+</html>
